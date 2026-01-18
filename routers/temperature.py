@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import crud, schemas, database
 from services import weather
+from fastapi.concurrency import run_in_threadpool
 
 router = APIRouter(
     prefix="/temperatures",
@@ -14,7 +15,7 @@ import asyncio
 
 @router.post("/update")
 async def update_temperatures(db: Session = Depends(database.get_db)):
-    cities = crud.get_cities(db)
+    cities = await run_in_threadpool(crud.get_cities, db)
     if not cities:
         return {"message": "No cities found to update"}
 
@@ -31,7 +32,7 @@ async def update_temperatures(db: Session = Depends(database.get_db)):
                 city_id=city.id,
                 temperature=temp
             )
-            crud.create_temperature(db=db, temperature=temp_create)
+            await run_in_threadpool(crud.create_temperature, db, temp_create)
             updated_count += 1
 
     return {"message": f"Updated temperatures for {updated_count} cities"}
